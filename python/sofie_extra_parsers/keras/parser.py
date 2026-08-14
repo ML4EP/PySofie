@@ -1,6 +1,7 @@
 import os
 import time
 
+from .._compat import add_initialized_tensor
 from . import get_keras_version
 from .layers.batchnorm import MakeKerasBatchNorm
 from .layers.binary import MakeKerasBinary
@@ -136,7 +137,7 @@ def add_layer_into_RModel(rmodel, layer_data):
         # in c++ that does the conversion from a regular pointer to unique one in c++
         # print('adding initialized tensor..',LayerName, TargetShape)
         shape_tensor_name = LayerName + "_shape"
-        rmodel.AddInitializedTensor(shape_tensor_name, SOFIE.ETensorType.UINT64, [len(TargetShape)], TargetShape)
+        add_initialized_tensor(rmodel, shape_tensor_name, SOFIE.ETensorType.UINT64, [len(TargetShape)], TargetShape)
 
     # These layers only have one operator - excluding the recurrent layers, in which the activation function(s)
     # are included in the recurrent operator
@@ -509,7 +510,7 @@ class PyKeras:
 
                 else:
                     fData = fWeightArray.flatten()
-                rmodel.AddInitializedTensor(fWeightName, SOFIE.ETensorType.FLOAT, fWeightTensorShape, fData)
+                add_initialized_tensor(rmodel, fWeightName, SOFIE.ETensorType.FLOAT, fWeightTensorShape, fData)
             else:
                 raise TypeError("Type error: TMVA SOFIE does not yet support data layer type: " + fWeightDType)
 

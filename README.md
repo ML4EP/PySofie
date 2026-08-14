@@ -19,7 +19,10 @@ SOFIE generates standalone C++ inference code.
 - **ROOT** with PyROOT and TMVA/SOFIE enabled. ROOT is not distributed on
   PyPI, so it cannot be installed by pip; it has to come from your
   environment (system package manager, conda-forge, CVMFS, nix, a source
-  build, ...).
+  build, ...). The parsers work with ROOT 6.40 and later; note that with
+  ROOT 6.40, dilated Conv2D models produce wrong inference results because
+  of a bug in SOFIE's Conv operator that is only fixed in later versions
+  (root-project/root commit d42a7a7780c).
 - **keras**/**tensorflow** for parsing Keras models, **torch** for parsing
   TorchScript models. These are imported lazily, so you only need the ones
   you actually use.

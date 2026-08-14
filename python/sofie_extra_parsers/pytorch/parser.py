@@ -1,6 +1,8 @@
 import os
 import time
 
+from .._compat import add_initialized_tensor
+
 
 def move_operator(op):
     """
@@ -393,8 +395,8 @@ class PyTorch:
             weight_dtype = SOFIE.ConvertStringToType(weight_tensor.type()[6:-6])
             if weight_dtype == SOFIE.ETensorType.FLOAT:
                 weight_value = weight_tensor.numpy()
-                rmodel.AddInitializedTensor(
-                    weight_name, SOFIE.ETensorType.FLOAT, list(weight_value.shape), weight_value.flatten()
+                add_initialized_tensor(
+                    rmodel, weight_name, SOFIE.ETensorType.FLOAT, list(weight_value.shape), weight_value.flatten()
                 )
             else:
                 raise RuntimeError(
