@@ -14,6 +14,8 @@ import ROOT
 import torch
 import torch.nn as nn
 
+from sofie_extra_parsers import PyTorch
+
 SOFIE = ROOT.TMVA.Experimental.SOFIE
 
 # Python and C++ write to separate stdout buffers; flush both on every line so
@@ -59,7 +61,7 @@ input_shapes = ROOT.std.vector["std::vector<std::size_t>"]()
 input_shapes.push_back([2, 32])
 
 # Parsing the saved PyTorch .pt file into RModel object
-model = SOFIE.PyTorch.Parse("PyTorchModel.pt", input_shapes)
+model = PyTorch.Parse("PyTorchModel.pt", input_shapes)
 
 # Generating inference code
 model.Generate()

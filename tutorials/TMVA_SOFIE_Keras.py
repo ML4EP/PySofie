@@ -14,6 +14,7 @@ import warnings
 
 import numpy as np
 import ROOT
+from sofie_extra_parsers import PyKeras
 from tensorflow.keras.layers import Activation, Dense, Input, Softmax
 from tensorflow.keras.models import Model
 
@@ -82,7 +83,7 @@ model.summary()
 
 # Parse the ONNX model
 
-model = ROOT.TMVA.Experimental.SOFIE.PyKeras.Parse("KerasModel.keras")
+model = PyKeras.Parse("KerasModel.keras")
 
 # Generate inference code
 model.Generate()

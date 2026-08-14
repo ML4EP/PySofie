@@ -1,5 +1,7 @@
 import ROOT
 
+from sofie_extra_parsers import PyKeras
+
 '''
 The test file contains two types of functions:
 
@@ -54,7 +56,7 @@ def generate_and_test_inference(
     print("Numpy version:", np.__version__)
 
     model_name = model_file_path[model_file_path.rfind('/')+1:].removesuffix(".keras")
-    rmodel = ROOT.TMVA.Experimental.SOFIE.PyKeras.Parse(model_file_path, batch_size)
+    rmodel = PyKeras.Parse(model_file_path, batch_size)
     if generated_header_file_dir is None:
         last_idx = model_file_path.rfind("/")
         if last_idx == -1:

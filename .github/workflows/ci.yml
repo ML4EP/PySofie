@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # AlmaLinux 10 provides ROOT as a system package via EPEL.
+    container: almalinux:10
+    env:
+      # The default FlexiBLAS backend on EL10 is the OpenMP OpenBLAS, which
+      # silently computes wrong sgemm_ results in this process: the
+      # TensorFlow wheel brings its own bundled OpenMP runtime, and mixing
+      # two OpenMP runtimes in one process is not supported. Use the
+      # sequential reference BLAS instead; the test models are tiny, so
+      # performance does not matter.
+      FLEXIBLAS: netlib
+    steps:
+      - name: Install ROOT and Python
+        run: |
+          dnf install -y epel-release
+          # The EPEL "root" metapackage does not pull in the TMVA subpackages,
+          # and without libROOTTMVASofie.so the SOFIE classes are visible to
+          # cling via the headers but their symbols cannot be materialized
+          dnf install -y root 'root-tmva*' python3-root python3-pip openblas gcc-c++
+
+      - uses: actions/checkout@v4
+
+      - name: Install the package with test dependencies
+        run: |
+          # Install the CPU-only PyTorch wheels first: the default wheels pull
+          # in the CUDA stack, which is useless here and too big for the runner.
+          python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python3 -m pip install .[test]
+
+      # Run each test file in its own pytest process: the tests JIT-compile
+      # C++ code, and a crash in one file must not swallow the failure
+      # reports of the others (pytest only prints them at the end of a run).
+      - name: Run tests
+        run: |
+          status=0
+          for f in tests/sofie_keras_parser.py tests/sofie_keras_parser_models.py tests/sofie_pytorch_parser.py; do
+            python3 -m pytest -v "$f" || status=1
+          done
+          exit $status

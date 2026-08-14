@@ -314,8 +314,8 @@ class PyTorch:
 
         Example usage:
         ~~~ {.py}
-        import ROOT
-        model = ROOT.TMVA.Experimental.SOFIE.PyTorch.Parse("trained_model_dense.pt", [[120, 1]])
+        from sofie_extra_parsers import PyTorch
+        model = PyTorch.Parse("trained_model_dense.pt", [[120, 1]])
         ~~~
         """
 

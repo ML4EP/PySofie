@@ -5,7 +5,9 @@ import unittest
 import numpy as np
 import ROOT
 
-# Test the SOFIE PyTorch parser (TMVA::Experimental::SOFIE::PyTorch::Parse) by
+from sofie_extra_parsers import PyTorch
+
+# Test the SOFIE PyTorch parser (sofie_extra_parsers.PyTorch.Parse) by
 # parsing TorchScript models, generating and compiling the inference code and
 # comparing the SOFIE results with the outputs of the original PyTorch models.
 #
@@ -92,7 +94,7 @@ class SOFIE_PyTorch_Parser(unittest.TestCase):
         # tensor shapes, which also fix the batch size (the first dimension).
         input_shapes = ROOT.std.vector["std::vector<std::size_t>"]()
         input_shapes.push_back(input_tensor.shape)
-        rmodel = ROOT.TMVA.Experimental.SOFIE.PyTorch.Parse(model_path, input_shapes)
+        rmodel = PyTorch.Parse(model_path, input_shapes)
 
         # Generate and compile the SOFIE inference code
         batch_size = input_tensor.shape[0]
