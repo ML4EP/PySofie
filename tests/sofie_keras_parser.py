@@ -4,6 +4,7 @@ import shutil
 
 from parser_test_function import generate_and_test_inference
 from parser_test_function import is_channels_first_supported
+from parser_test_function import root_has_conv_dilation_fix
 from generate_keras_functional import generate_keras_functional
 from generate_keras_sequential import generate_keras_sequential
 
@@ -50,6 +51,12 @@ models = [
 if (not is_channels_first_supported()):
    models = [m for m in models if "channels_first" not in m]
 
+# Models that are expected to fail because of bugs in SOFIE's C++ code that
+# are only fixed in later ROOT versions
+expected_failures = set()
+if not root_has_conv_dilation_fix():
+    expected_failures.add("Conv2D_padding_same_dilation")
+
 print(models)
 
 class SOFIE_Keras_Parser(unittest.TestCase):
@@ -71,7 +78,14 @@ class SOFIE_Keras_Parser(unittest.TestCase):
             keras_model_name = f"{model_type.capitalize()}_{keras_model}_test.keras"
             keras_model_path = f"{model_type}/input_models/" + keras_model_name
             with self.subTest(msg=make_testname(keras_model_name)):
-                generate_and_test_inference(keras_model_path, f"{model_type}/generated_header_files_dir")
+                if keras_model in expected_failures:
+                    # There is no expectedFailure equivalent for subtests, so
+                    # assert that the known failure is still there, which also
+                    # reminds us to remove the exception once it is fixed
+                    with self.assertRaises(AssertionError):
+                        generate_and_test_inference(keras_model_path, f"{model_type}/generated_header_files_dir")
+                else:
+                    generate_and_test_inference(keras_model_path, f"{model_type}/generated_header_files_dir")
 
     def test_sequential(self):
         sequential_models = models

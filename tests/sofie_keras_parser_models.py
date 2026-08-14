@@ -8,6 +8,12 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 import numpy as np
 from parser_test_function import generate_and_test_inference
+from parser_test_function import root_has_conv_dilation_fix
+
+
+def expected_failure_if(condition):
+    """Apply unittest.expectedFailure only if the condition is true."""
+    return unittest.expectedFailure if condition else (lambda func: func)
 
 # Test the SOFIE Keras parser on full multi-layer models (sequential and
 # functional), comparing the SOFIE inference results with the outputs of the
@@ -250,6 +256,7 @@ class SOFIE_Keras_Parser_Models(unittest.TestCase):
         input_tensor = np.ones((1, 4, 4, 1), dtype=np.float32)
         self.run_model_test("KerasModelConv2D_Same", [input_tensor], batch_size=1)
 
+    @expected_failure_if(not root_has_conv_dilation_fix())
     def test_conv2d_same_padding_dilated(self):
         input_tensor = np.ones((1, 8, 8, 1), dtype=np.float32)
         self.run_model_test("KerasModelConv2D_SameDilated", [input_tensor], batch_size=1)

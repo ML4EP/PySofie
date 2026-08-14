@@ -30,6 +30,13 @@ The test file contains two types of functions:
           NumPy arrays before being passed to the np.testing.assert_allclose function for comparison.
 
 '''
+def root_has_conv_dilation_fix():
+    # The double-counting of the dilation in the Conv im2col was only fixed
+    # after the ROOT 6.40 release (root-project/root commit d42a7a7780c), so
+    # the first release with the fix will be ROOT 6.42.
+    return ROOT.gROOT.GetVersionInt() >= 64100
+
+
 def is_channels_first_supported() :
       #channel first is not supported on tensorflow CPU versions
       from keras import backend
