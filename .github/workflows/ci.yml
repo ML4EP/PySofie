@@ -9,41 +9,50 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # AlmaLinux 10 provides ROOT as a system package via EPEL.
-    container: almalinux:10
-    env:
-      # The default FlexiBLAS backend on EL10 is the OpenMP OpenBLAS, which
-      # silently computes wrong sgemm_ results in this process: the
-      # TensorFlow wheel brings its own bundled OpenMP runtime, and mixing
-      # two OpenMP runtimes in one process is not supported. Use the
-      # sequential reference BLAS instead; the test models are tiny, so
-      # performance does not matter.
-      FLEXIBLAS: netlib
+    strategy:
+      matrix:
+        # the generation of alpaka code is opt-in; the runner has no GPU, so only the tests that do not
+        # run on one (the emitted code, and that it compiles against alpaka and sofieBLAS) apply
+        flags: ["", "--alpaka --arch cuda"]
     steps:
-      - name: Install ROOT and Python
-        run: |
-          dnf install -y epel-release
-          # The EPEL "root" metapackage does not pull in the TMVA subpackages,
-          # and without libROOTTMVASofie.so the SOFIE classes are visible to
-          # cling via the headers but their symbols cannot be materialized
-          dnf install -y root 'root-tmva*' python3-root python3-pip openblas gcc-c++
-
+      # SOFIE is a git submodule of this repository
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Install the package with test dependencies
-        run: |
-          # Install the CPU-only PyTorch wheels first: the default wheels pull
-          # in the CUDA stack, which is useless here and too big for the runner.
-          python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-          python3 -m pip install .[test]
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      # Run each test file in its own pytest process: the tests JIT-compile
-      # C++ code, and a crash in one file must not swallow the failure
-      # reports of the others (pytest only prints them at the end of a run).
-      - name: Run tests
+      # dev mode installs the system packages (compiler, CMake, BLAS), the CPU-only torch
+      # wheels and the test dependencies, and runs every test file in its own pytest process
+      - name: Install (dev mode) and run the tests
+        run: ./install.sh dev ${{ matrix.flags }}
+
+  prod-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (prod mode)
+        run: ./install.sh prod
+      - name: The core works without any dependency
         run: |
-          status=0
-          for f in tests/sofie_keras_parser.py tests/sofie_keras_parser_models.py tests/sofie_pytorch_parser.py; do
-            python3 -m pytest -v "$f" || status=1
-          done
-          exit $status
+          python3 -m pip list
+          cd /tmp && python3 - <<'PY'
+          import sofie, sys
+          sofie.RModel("m", "now")
+          assert "numpy" not in sys.modules
+          # the Keras and PyTorch parsers say which extra to install
+          for name, extra in (("pytorch", "torch"), ("keras", "keras")):
+              try:
+                  getattr(sofie, name).parse("model")
+              except ImportError as e:
+                  assert f"sofie[{extra}]" in str(e), e
+              else:
+                  raise AssertionError("expected an ImportError")
+          PY

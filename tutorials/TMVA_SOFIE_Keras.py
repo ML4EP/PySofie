@@ -9,17 +9,16 @@
 ### \author Sanjiban Sengupta and Lorenzo Moneta
 
 
+import os
 import contextlib
 import warnings
 
 import numpy as np
-import ROOT
-from sofie_extra_parsers import PyKeras
+import sofie
+
+os.makedirs("generated", exist_ok=True)
 from tensorflow.keras.layers import Activation, Dense, Input, Softmax
 from tensorflow.keras.models import Model
-
-# Enable ROOT in batch mode (same effect as -nodraw)
-ROOT.gROOT.SetBatch(True)
 
 
 @contextlib.contextmanager
@@ -57,15 +56,15 @@ x = Dense(2)(x)
 output = Softmax()(x)
 model = Model(inputs=input, outputs=output)
 
-randomGenerator = np.random.RandomState(0)
-x_train = randomGenerator.rand(4, 4)
-y_train = randomGenerator.rand(4, 2)
+random_generator = np.random.RandomState(0)
+x_train = random_generator.rand(4, 4)
+y_train = random_generator.rand(4, 2)
 
 model.compile(loss="mse", optimizer="adam")
 model.fit(x_train, y_train, epochs=3, batch_size=2)
 
 # Keras' internal ``np.array(x)`` (TensorFlow backend) does not yet implement
-# the NumPy 2.0 ``__array__(copy=...)`` signature, so saving the model emits a
+# the numpy 2.0 ``__array__(copy=...)`` signature, so saving the model emits a
 # DeprecationWarning that we cannot fix from user code.
 if tuple(int(p) for p in np.__version__.split(".")[:2]) >= (2, 0):
     ctx = expect_warning(DeprecationWarning, "__array__ implementation doesn't accept a copy keyword")
@@ -73,43 +72,34 @@ else:
     ctx = contextlib.nullcontext()
 
 with ctx:
-    model.save("KerasModel.keras")
+    model.save("generated/KerasModel.keras")
 
 model.summary()
 
 # -----------------------------------------------------------------------------
-# Step 2: Use TMVA::SOFIE to parse the ONNX model
+# Step 2: Use SOFIE to parse the Keras model
 # -----------------------------------------------------------------------------
 
-# Parse the ONNX model
+model = sofie.keras.parse("generated/KerasModel.keras")
 
-model = PyKeras.Parse("KerasModel.keras")
+# Generate the inference code and write it to KerasModel.hxx
+model.generate()
+model.output_generated("generated/KerasModel.hxx")
 
-# Generate inference code
-model.Generate()
-model.OutputGenerated()
 # print generated code
 print("\n**************************************************")
 print("           Generated code")
 print("**************************************************\n")
-model.PrintGenerated()
+model.print_generated()
 print("**************************************************\n\n\n")
 
-# Compile the generated code
-ROOT.gInterpreter.Declare('#include "KerasModel.hxx"')
-
-
 # -----------------------------------------------------------------------------
-# Step 3: Run inference
+# Step 3: Use the generated code
 # -----------------------------------------------------------------------------
 
-# instantiate SOFIE session class
-session = ROOT.TMVA_SOFIE_KerasModel.Session()
-
-# Input tensor (same shape as training input)
-x = np.array([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]], dtype=np.float32)
-
-# Run inference
-y = session.infer(x)
-
-print("Inference output:", y)
+# KerasModel.hxx is a standalone C++ header: include it in your C++ code, link
+# with BLAS, and run inference with
+#
+#   #include "generated/KerasModel.hxx"
+#   SOFIE_KerasModel::Session session("KerasModel.dat");
+#   std::vector<float> y = session.infer(x);   // x: float const* of shape (2, 4)

@@ -1,0 +1,3 @@
+[submodule "SOFIE"]
+	path = SOFIE
+	url = https://github.com/ML4EP/SOFIE
