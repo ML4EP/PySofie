@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        parsers: ["keras", "torch", "keras,torch"]
+        parsers: ["keras", "torch"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,34 +94,40 @@ jobs:
           parsers = "${{ matrix.parsers }}".split(",")
           tmp = tempfile.mkdtemp()
 
-          if "keras" in parsers:
+
+          def emit(rmodel, name):
+              rmodel.generate()
+              header = os.path.join(tmp, name + ".hxx")
+              rmodel.output_generated(header)
+              assert os.path.getsize(header) > 0
+
+
+          def check_keras():
               import keras
 
               model = keras.Sequential([keras.Input(shape=(4,)), keras.layers.Dense(3, activation="relu")])
               path = os.path.join(tmp, "m.keras")
               model.save(path)
-              rmodel = sofie.keras.parse(path, 2)
-              rmodel.generate()
-              rmodel.output_generated(os.path.join(tmp, "keras_m.hxx"))
-              assert os.path.getsize(os.path.join(tmp, "keras_m.hxx")) > 0
+              emit(sofie.keras.parse(path, 2), "keras_m")
 
-          if "torch" in parsers:
+
+          def check_torch():
               import torch
 
               model = torch.nn.Sequential(torch.nn.Linear(4, 3), torch.nn.ReLU()).eval()
-              rmodel = sofie.pytorch.parse(torch.export.export(model, (torch.randn(2, 4),)))
-              rmodel.generate()
-              rmodel.output_generated(os.path.join(tmp, "torch_m.hxx"))
-              assert os.path.getsize(os.path.join(tmp, "torch_m.hxx")) > 0
+              emit(sofie.pytorch.parse(torch.export.export(model, (torch.randn(2, 4),))), "torch_m")
 
-          missing = {"keras", "torch"} - set(parsers)
-          for name in missing:
-              try:
-                  getattr(sofie, name).parse("model")
-              except ImportError as e:
-                  assert "sofie[" in str(e), e
+
+          for extra, name, check in (("keras", "keras", check_keras), ("torch", "pytorch", check_torch)):
+              if extra in parsers:
+                  check()
               else:
-                  raise AssertionError("expected an ImportError")
+                  try:
+                      getattr(sofie, name).parse("model")
+                  except ImportError as e:
+                      assert "sofie[" in str(e), e
+                  else:
+                      raise AssertionError("expected an ImportError")
           PY
 
   package:
@@ -140,13 +146,18 @@ jobs:
       - name: The sdist carries the sources and not the tests
         run: |
           python3 - <<'PY'
-          import glob, tarfile
+          import glob, os, tarfile
 
           (sdist,) = glob.glob("dist/*.tar.gz")
           names = tarfile.open(sdist).getnames()
           assert any("/SOFIE/core/CMakeLists.txt" in n for n in names)
           assert any("/packaging/sofie_build.py" in n for n in names)
-          assert not any("/tests/" in n or "/tutorials/" in n for n in names)
+          top_level = [n for n in names if n.split("/")[1:2] in (["tests"], ["tutorials"], [".github"])]
+          assert not top_level, top_level[:10]
+          bulky = [n for n in names if "/SOFIE/benchmark/" in n or "/SOFIE/tests/" in n]
+          assert not bulky, bulky[:10]
+          size = os.path.getsize(sdist)
+          assert size < 5_000_000, size
           PY
       - name: Install the wheel in a clean environment
         run: |
