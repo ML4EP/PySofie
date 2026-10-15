@@ -1,0 +1,156 @@
+name: CI Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      # SOFIE is a git submodule of this repository
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # dev mode installs the system packages (compiler, CMake, BLAS), the CPU-only torch
+      # wheels and the test dependencies, and runs every test file in its own pytest process
+      - name: Install (dev mode) and run the tests
+        run: ./install.sh dev
+
+      - name: Run the tutorials
+        run: |
+          python3 tutorials/TMVA_SOFIE_Keras.py
+          python3 tutorials/TMVA_SOFIE_PyTorch.py
+          test -s generated/KerasModel.hxx
+          test -s generated/PyTorchModel.hxx
+
+      - name: Upload generated files
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-${{ strategy.job-index }}
+          path: generated/
+          if-no-files-found: ignore
+
+  prod-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (prod mode)
+        run: ./install.sh prod
+      - name: The core works without any dependency
+        run: |
+          python3 -m pip list
+          cd /tmp && python3 - <<'PY'
+          import sofie, sys
+          sofie.RModel("m", "now")
+          assert "numpy" not in sys.modules
+          # the Keras and PyTorch parsers say which extra to install
+          for name, extra in (("pytorch", "torch"), ("keras", "keras")):
+              try:
+                  getattr(sofie, name).parse("model")
+              except ImportError as e:
+                  assert f"sofie[{extra}]" in str(e), e
+              else:
+                  raise AssertionError("expected an ImportError")
+          PY
+
+  parsers:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        parsers: ["keras", "torch", "keras,torch"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (prod mode) with the parsers
+        run: ./install.sh prod --parsers ${{ matrix.parsers }}
+      - name: Each installed parser parses a model and emits a header
+        run: |
+          cd "$RUNNER_TEMP"
+          python3 - <<'PY'
+          import os, tempfile
+          import sofie
+
+          parsers = "${{ matrix.parsers }}".split(",")
+          tmp = tempfile.mkdtemp()
+
+          if "keras" in parsers:
+              import keras
+
+              model = keras.Sequential([keras.Input(shape=(4,)), keras.layers.Dense(3, activation="relu")])
+              path = os.path.join(tmp, "m.keras")
+              model.save(path)
+              rmodel = sofie.keras.parse(path, 2)
+              rmodel.generate()
+              rmodel.output_generated(os.path.join(tmp, "keras_m.hxx"))
+              assert os.path.getsize(os.path.join(tmp, "keras_m.hxx")) > 0
+
+          if "torch" in parsers:
+              import torch
+
+              model = torch.nn.Sequential(torch.nn.Linear(4, 3), torch.nn.ReLU()).eval()
+              rmodel = sofie.pytorch.parse(torch.export.export(model, (torch.randn(2, 4),)))
+              rmodel.generate()
+              rmodel.output_generated(os.path.join(tmp, "torch_m.hxx"))
+              assert os.path.getsize(os.path.join(tmp, "torch_m.hxx")) > 0
+
+          missing = {"keras", "torch"} - set(parsers)
+          for name in missing:
+              try:
+                  getattr(sofie, name).parse("model")
+              except ImportError as e:
+                  assert "sofie[" in str(e), e
+              else:
+                  raise AssertionError("expected an ImportError")
+          PY
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the sdist and the wheel built from it
+        run: |
+          python3 -m pip install build
+          python3 -m build --outdir dist .
+      - name: The sdist carries the sources and not the tests
+        run: |
+          python3 - <<'PY'
+          import glob, tarfile
+
+          (sdist,) = glob.glob("dist/*.tar.gz")
+          names = tarfile.open(sdist).getnames()
+          assert any("/SOFIE/core/CMakeLists.txt" in n for n in names)
+          assert any("/packaging/sofie_build.py" in n for n in names)
+          assert not any("/tests/" in n or "/tutorials/" in n for n in names)
+          PY
+      - name: Install the wheel in a clean environment
+        run: |
+          python3 -m venv "$RUNNER_TEMP/clean"
+          "$RUNNER_TEMP/clean/bin/pip" install dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/clean/bin/python" -c "import sofie; sofie.RModel('m', 'now'); print(sofie.__file__)"
