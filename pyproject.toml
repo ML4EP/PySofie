@@ -32,9 +32,10 @@ dev = ["sofie[full]", "pytest", "onnx", "onnxscript"]
 
 [tool.scikit-build]
 wheel.packages = ["python/sofie"]
-# tests and tutorials are not part of a production install; the SOFIE submodule is part of the sources
-sdist.exclude = ["tests", "tutorials", ".github"]
-sdist.include = ["SOFIE", "packaging"]
+# tests and tutorials are not part of a production install; of the SOFIE submodule only the sources
+# that are built are, not its tests and benchmarks
+sdist.exclude = ["tests", "tutorials", ".github", "benchmark"]
+sdist.include = ["SOFIE/core", "SOFIE/parsers", "SOFIE/cmake", "SOFIE/LICENSE", "packaging"]
 cmake.version = ">=3.18"
 
 # the version is the one of python/sofie/__init__.py

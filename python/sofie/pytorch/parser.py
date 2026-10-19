@@ -302,7 +302,7 @@ def parse(model, input_shapes=None, input_dtypes=None, decompose=True, decomposi
     ~~~
     """
 
-    import torch
+    torch = import_torch()
 
     if decompositions is not None and not decompose:
         raise ValueError("decompositions need decompose=True")
