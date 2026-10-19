@@ -42,9 +42,12 @@ jobs:
         with:
           name: dist-sdist
           path: sdist
+      - name: Find the sdist
+        id: sdist
+        run: echo "path=$(ls sdist/*.tar.gz)" >> "$GITHUB_OUTPUT"
       - uses: pypa/cibuildwheel@v2.23.3
         with:
-          package-dir: sdist/*.tar.gz
+          package-dir: ${{ steps.sdist.outputs.path }}
           output-dir: wheelhouse
       - uses: actions/upload-artifact@v4
         with:
