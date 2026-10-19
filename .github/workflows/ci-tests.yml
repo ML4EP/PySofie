@@ -10,6 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.10", "3.12"]
     steps:
@@ -73,6 +74,7 @@ jobs:
   parsers:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         parsers: ["keras", "torch"]
     steps:
@@ -143,7 +145,7 @@ jobs:
         run: |
           python3 -m pip install build
           python3 -m build --outdir dist .
-      - name: The sdist carries the sources and not the tests
+      - name: sdist carrying the sources
         run: |
           python3 - <<'PY'
           import glob, os, tarfile
