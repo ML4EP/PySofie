@@ -23,7 +23,16 @@ class) and one file per operator in `src/operators/` (for example `gemm.cpp`).
 
 ## Installation
 
-The base install has the ONNX parser only and no Python dependencies. The Keras
+From PyPI:
+
+```sh
+pip install sofie                # the ONNX parser, no dependencies
+pip install "sofie[keras]"       # + the Keras parser
+pip install "sofie[torch]"       # + the PyTorch parser
+pip install "sofie[full]"        # all three parsers
+```
+
+From a checkout of this repository, the base install has the ONNX parser only and no Python dependencies. The Keras
 and PyTorch parsers are extras of the package that install the frameworks they
 need:
 
