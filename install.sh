@@ -14,7 +14,7 @@
 #                       CMake, git, BLAS) and to run the tests (pytest, numpy, keras, tensorflow,
 #                       torch) as an editable install, then runs the tests
 #
-# Both modes take --alpaka --arch ARCH: the generation of heterogeneous (alpaka) code is off by default,
+# Both modes take --alpaka --arch ARCH: the generation of portable code is off by default,
 # and is for a backend, ARCH: cuda (nvidia) or hip (amd). With it, the package is built for that backend
 # (sofie.alpaka_backend), and in dev mode alpaka and sofieBLAS are fetched and the alpaka tests run (for
 # the models of the ONNX, Keras and PyTorch parsers).
@@ -101,7 +101,7 @@ install_torch_cpu() {
 if [ ! -f "$SOFIE_SOURCE_DIR/core/CMakeLists.txt" ]; then
   echo "SOFIE sources not found in $SOFIE_SOURCE_DIR"
   if [ "$SOFIE_SOURCE_DIR" = "$PWD/SOFIE" ] && [ -e .git ]; then
-    run git submodule update --init SOFIE
+    run ./packaging/init_sofie.sh
   else
     echo "error: give the SOFIE sources in SOFIE_SOURCE_DIR (https://github.com/ML4EP/SOFIE)" >&2
     exit 1

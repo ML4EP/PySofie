@@ -15,8 +15,8 @@ jobs:
     steps:
       # SOFIE is a git submodule of this repository
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Check out the SOFIE sources that are built
+        run: ./packaging/init_sofie.sh
 
       - uses: actions/setup-python@v5
         with:
@@ -46,8 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Check out the SOFIE sources that are built
+        run: ./packaging/init_sofie.sh
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -77,8 +77,8 @@ jobs:
         parsers: ["keras", "torch"]
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Check out the SOFIE sources that are built
+        run: ./packaging/init_sofie.sh
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -134,8 +134,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Check out the SOFIE sources that are built
+        run: ./packaging/init_sofie.sh
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

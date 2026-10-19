@@ -92,7 +92,7 @@ Running the alpaka code itself needs a GPU backend and its toolchain (e.g. the
 CUDA toolkit).
 
 SOFIE ([ML4EP/SOFIE](https://github.com/ML4EP/SOFIE)) is a git submodule of
-this repository, in `SOFIE/`, pinned to a commit. Clone with
+this repository. Clone with
 `git clone --recurse-submodules` (or run `git submodule update --init` afterwards;
 `install.sh` does it if the directory is empty). To build against another
 checkout of SOFIE, set `SOFIE_SOURCE_DIR` (or pass
